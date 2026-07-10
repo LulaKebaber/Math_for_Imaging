@@ -1,0 +1,6 @@
+numpy>=1.24
+scipy>=1.10          # scipy.datasets.ascent() for the built-in image
+matplotlib>=3.7
+notebook>=7.0        # or jupyterlab
+pooch>=1.7           # required by scipy.datasets to fetch ascent() (downloads once)
+imageio>=2.31        # optional, only if loading a custom image from data/
