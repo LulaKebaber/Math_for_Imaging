@@ -25,16 +25,15 @@ Conventions (enforced throughout):
     * Images are float64, grayscale, normalized to [0, 1].
     * Reconstructions are returned as ``real(ifft2(...))``.
 
-All code, comments and docstrings are in English by design.
 """
 
 from __future__ import annotations
 
 import numpy as np
-from scipy import ndimage  # ndimage.zoom for resizing (avoid shadowing our zoom() helper)
+from scipy import ndimage
 
 # ============================================================================
-# Section 1 — Configuration  (Phase 1)
+# Section 1: Configuration
 # ----------------------------------------------------------------------------
 # Every tunable parameter lives here so experiments are reproducible and easy
 # to sweep from the notebook (e.g. ``td.GAUSS_SIGMA = 3``).
@@ -64,7 +63,7 @@ SEED: int = 0
 
 
 # ============================================================================
-# Section 2 — Image loading  (Phase 2)
+# Section 2: Image loading
 # ----------------------------------------------------------------------------
 # ``load_image`` returns a float64 grayscale image in [0, 1]. By default it
 # uses the built-in ``scipy.datasets.ascent`` photo; if that is unavailable
@@ -90,8 +89,8 @@ def _to_float_gray(img: np.ndarray) -> np.ndarray:
 def _resize(img: np.ndarray, size: int) -> np.ndarray:
     """Resample a 2-D image to ``(size, size)`` via bilinear interpolation.
 
-    Bilinear (``order=1``) is used on purpose: it does not overshoot, so it
-    keeps edges clean and avoids introducing ringing into the *source* image.
+    Bilinear (``order=1``) does not overshoot, so it keeps edges clean and does
+    not introduce ringing into the source image.
     """
     height, width = img.shape
     if (height, width) == (size, size):
@@ -162,7 +161,7 @@ def load_image(path: str | None = None, size: int = IMAGE_SIZE) -> np.ndarray:
         from scipy.datasets import ascent
         img = np.asarray(ascent(), dtype=np.float64)  # 512 x 512 grayscale
         return _normalize01(_resize(img, size))
-    except Exception as exc:  # noqa: BLE001 - we deliberately catch everything
+    except Exception as exc:
         print(
             f"[load_image] built-in ascent() unavailable "
             f"({type(exc).__name__}: {exc}); using synthetic test image instead."
@@ -171,7 +170,7 @@ def load_image(path: str | None = None, size: int = IMAGE_SIZE) -> np.ndarray:
 
 
 # ============================================================================
-# Section 3 — Frequency grid  (Phase 3)
+# Section 3: Frequency grid
 # ----------------------------------------------------------------------------
 # Implements Appendix Algorithm 1. Physical kernels (Gaussian, motion, ...) and
 # penalty polynomials are defined on a *centered* grid where the zero frequency
@@ -182,8 +181,7 @@ def load_image(path: str | None = None, size: int = IMAGE_SIZE) -> np.ndarray:
 #                                 ->  multiply with ``fft2`` outputs
 #
 # Getting this shift wrong (or applying it twice) is the single most common bug
-# in frequency-domain deblurring, so the conversion is funnelled through one
-# named helper.
+# in frequency-domain deblurring, so the conversion goes through one helper.
 # ============================================================================
 
 def make_centered_grid(n_rows: int, n_cols: int):
@@ -213,15 +211,15 @@ def make_centered_grid(n_rows: int, n_cols: int):
 def to_fft_layout(centered: np.ndarray) -> np.ndarray:
     """Shift a DC-centered array to numpy FFT layout (DC moved to index (0, 0)).
 
-    Thin, intention-revealing wrapper around ``numpy.fft.ifftshift`` so the
-    centered-grid -> FFT-layout convention is applied consistently and exactly
-    once wherever a physical kernel or penalty enters the frequency domain.
+    Wrapper around ``numpy.fft.ifftshift`` so the centered-grid to FFT-layout
+    conversion is applied consistently, once, wherever a kernel or penalty
+    enters the frequency domain.
     """
     return np.fft.ifftshift(centered)
 
 
 # ============================================================================
-# Section 4 — Transfer functions / PSF  (Phase 4)
+# Section 4: Transfer functions / PSF
 # ----------------------------------------------------------------------------
 # Each function takes the *centered* grid (wX, wY) and returns the transfer
 # function K_hat already in FFT layout (DC at (0,0)), ready to multiply with
@@ -312,7 +310,7 @@ def get_transfer_function(
 
 
 # ============================================================================
-# Section 5 — Metrics  (Phase 5)
+# Section 5: Metrics
 # ----------------------------------------------------------------------------
 # Quality / error metrics used to rank reconstructions and to confirm that the
 # forward problem injects noise at the requested SNR. All operate on float
@@ -367,8 +365,8 @@ def measure_snr_db(g_clean: np.ndarray, g_noisy: np.ndarray) -> float:
     a freshly degraded image returns (up to sampling fluctuations) the target SNR.
 
     Note: this *std-based* SNR differs from the *mean-based* definition of Eq. (7)
-    (``mean(image)/sigma``). We deliberately follow the appendix's injection
-    formula so that "target" and "measured" SNR coincide throughout the project.
+    (``mean(image)/sigma``). We follow the appendix's injection formula so that
+    the target and the measured SNR coincide throughout.
     """
     noise_std = float(np.std(g_noisy - g_clean))
     if noise_std == 0.0:
@@ -377,7 +375,7 @@ def measure_snr_db(g_clean: np.ndarray, g_noisy: np.ndarray) -> float:
 
 
 # ============================================================================
-# Section 6 — Forward problem  (Phase 6)
+# Section 6: Forward problem
 # ----------------------------------------------------------------------------
 # Implements Appendix Algorithm 2: degrade a sharp image with a known blur and
 # additive Gaussian noise to produce the observed data ``g``. Because the kernel
@@ -439,7 +437,7 @@ def simulate_forward(
 
 
 # ============================================================================
-# Section 7 — Reconstruction  (Phase 7)
+# Section 7: Reconstruction
 # ----------------------------------------------------------------------------
 # Implements Appendix Algorithm 3 (generalized Tikhonov) plus the Part 3 hard
 # spectral window and the naive inverse used to motivate regularization. All
@@ -516,7 +514,7 @@ def spectral_window_reconstruction(
     ``w_radius_fft`` is the frequency magnitude in FFT layout (i.e.
     ``to_fft_layout(w_radius)``). Division by ``K_hat`` is guarded only against
     literal zeros (``|K_hat| < eps``); within the passband the genuine noise
-    amplification is preserved on purpose -- that, together with the abrupt edge
+    amplification is preserved: that, together with the abrupt edge
     of the brick-wall window, is what produces the ringing / Gibbs artifacts we
     want to contrast against the smooth Tikhonov roll-off.
     """
@@ -543,7 +541,7 @@ def naive_inverse(g: np.ndarray, K_hat: np.ndarray, eps: float = 1e-8) -> np.nda
 
 
 # ============================================================================
-# Section 8 — Error analysis  (Phase 8)
+# Section 8: Error analysis
 # ----------------------------------------------------------------------------
 # Implements Part 4: split the reconstruction error into the competing
 # Approximation (bias) and Noise-propagation (variance) terms as a function of
@@ -644,7 +642,7 @@ def bias_variance_spatial(
 
 
 # ============================================================================
-# Section 9 — Plot helpers  (Phase 9)
+# Section 9: Plot helpers
 # ----------------------------------------------------------------------------
 # Thin, reusable plotting utilities. They create (and return) their figure/axes
 # so the notebook stays in control of layout and inline display. matplotlib is
@@ -746,7 +744,7 @@ def plot_bias_variance(
 # ============================================================================
 
 if __name__ == "__main__":
-    # --- Phase 2: image loading ------------------------------------------------
+    # --- image loading -----------------------------------------------
     f0 = load_image()
     print("Loaded image:")
     print(f"  shape  = {f0.shape}")
@@ -756,9 +754,9 @@ if __name__ == "__main__":
     assert f0.shape == (IMAGE_SIZE, IMAGE_SIZE), "unexpected image shape"
     assert f0.dtype == np.float64, "image must be float64"
     assert 0.0 <= f0.min() and f0.max() <= 1.0 + 1e-9, "image must lie in [0, 1]"
-    print("OK - Phase 2 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 3: frequency grid ----------------------------------------------
+    # --- frequency grid ----------------------------------------------
     wX, wY, w_radius = make_centered_grid(IMAGE_SIZE, IMAGE_SIZE)
     cy, cx = IMAGE_SIZE // 2, IMAGE_SIZE // 2
     print("\nFrequency grid:")
@@ -774,9 +772,9 @@ if __name__ == "__main__":
     # Sanity on the axis semantics: wX varies along columns, wY along rows.
     assert np.all(wX[0, :] == np.arange(-IMAGE_SIZE // 2, IMAGE_SIZE // 2))
     assert np.all(wY[:, 0] == np.arange(-IMAGE_SIZE // 2, IMAGE_SIZE // 2))
-    print("OK - Phase 3 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 4: transfer functions ------------------------------------------
+    # --- transfer functions ------------------------------------------
     K_gauss = gaussian_tf(wX, wY, GAUSS_SIGMA)
     K_motion = motion_tf(wX, wY, MOTION_L)
     print("\nTransfer functions:")
@@ -796,9 +794,9 @@ if __name__ == "__main__":
     # Dispatcher returns the same arrays.
     assert np.allclose(get_transfer_function("gaussian", wX, wY), K_gauss)
     assert np.allclose(get_transfer_function("motion", wX, wY), K_motion)
-    print("OK - Phase 4 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 5: metrics ------------------------------------------------------
+    # --- metrics -----------------------------------------------------
     rng = np.random.default_rng(SEED)
     # Inject noise at a known target SNR (same formula add_noise will use) and
     # check that measure_snr_db recovers it.
@@ -816,9 +814,9 @@ if __name__ == "__main__":
     assert rmse(f0, f0) == 0.0
     assert abs(measured - target) < 1.0, "measured SNR must match the injected target"
     assert psnr(f0, noisy) < float("inf"), "PSNR of a noisy image must be finite"
-    print("OK - Phase 5 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 6: forward problem ---------------------------------------------
+    # --- forward problem ---------------------------------------------
     sim = simulate_forward(f0, K_gauss, SNR_HIGH_DB, np.random.default_rng(SEED))
     g_clean, g_noisy, noise, sigma = (
         sim["g_clean"], sim["g_noisy"], sim["noise"], sim["sigma"])
@@ -833,9 +831,9 @@ if __name__ == "__main__":
     # Determinism: same seed -> identical observation.
     sim2 = simulate_forward(f0, K_gauss, SNR_HIGH_DB, np.random.default_rng(SEED))
     assert np.allclose(sim2["g_noisy"], g_noisy), "forward must be deterministic for fixed seed"
-    print("OK - Phase 6 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 7: reconstruction ----------------------------------------------
+    # --- reconstruction ----------------------------------------------
     P_L2 = penalty_squared("L2", wX, wY)
     P_H1 = penalty_squared("H1", wX, wY)
     P_H2 = penalty_squared("H2", wX, wY)
@@ -865,9 +863,9 @@ if __name__ == "__main__":
     # Hard spectral window runs and returns a real image.
     rec_win = spectral_window_reconstruction(g, K_motion, to_fft_layout(w_radius), Omega=10.0)
     assert np.isrealobj(rec_win) and rec_win.shape == f0.shape
-    print("OK - Phase 7 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 8: error analysis (bias-variance) ------------------------------
+    # --- error analysis (bias-variance) ---------------------------------------
     curves = bias_variance_curves(f0, K_motion, simM["noise"], P_H1, MU_GRID)
     bias, var, total = curves["bias"], curves["variance"], curves["total"]
     mu_opt = optimal_mu(MU_GRID, total)
@@ -885,9 +883,9 @@ if __name__ == "__main__":
         b2, v2 = bias_variance_spatial(f0, K_motion, simM["noise"], P_H1, MU_GRID[i])
         assert np.isclose(b2, bias[i], rtol=1e-8), (b2, bias[i])
         assert np.isclose(v2, var[i], rtol=1e-8), (v2, var[i])
-    print("OK - Phase 8 smoke test passed.")
+    print("  ok")
 
-    # --- Phase 9: plot helpers (headless) -------------------------------------
+    # --- plot helpers (headless) -------------------------------------
     import matplotlib
     matplotlib.use("Agg")  # no display needed for the smoke test
     import matplotlib.pyplot as plt
@@ -899,5 +897,5 @@ if __name__ == "__main__":
     fig_b, ax_b = plot_bias_variance(MU_GRID, bias, var, total, mu_opt)
     assert ax_b is not None
     plt.close("all")
-    print("OK - Phase 9 smoke test passed.")
+    print("  ok")
     print("\nAll smoke tests passed.")
