@@ -138,10 +138,3 @@ average, but the abrupt cutoff introduces ringing near edges while the smooth Ti
 not. All quadratic penalties over-smooth edges because they penalize large gradients quadratically;
 edge-preserving alternatives such as Total Variation (an $L^1$ gradient penalty) exist but are
 non-linear and have no closed-form FFT solution.
-
-## Reproducibility
-
-All results are deterministic from a fixed seed. Run the module self-test with
-`python tikhonov_deblurring.py`, or open `deblurring_project.ipynb` and use *Restart & Run All*; the
-final cell re-checks the main invariants (SNR targets, transfer-function properties, Tikhonov beating
-the naive inverse, bias-variance monotonicity, and Fourier-vs-spatial agreement).

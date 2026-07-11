@@ -3,20 +3,20 @@
 Image deblurring in the frequency domain for *Mathematics for Imaging and Signal Processing*
 (A.A. 2025/2026). We recover a sharp image `f` from a blurred, noisy observation `g = A f + w`
 using **generalized Tikhonov regularization**, compare the `L²`, `H¹` and `H²` penalties against a
-hard spectral cutoff, and analyze the **bias–variance trade-off**.
+hard spectral cutoff, and analyze the **bias-variance trade-off**.
 
 ## Layout
 
 ```
 tikhonov-deblurring/
 ├── tikhonov_deblurring.py     # core library (all the math, one sectioned module)
-├── deblurring_project.ipynb   # MAIN deliverable: Parts 1–4 with inline visualizations
+├── deblurring_project.ipynb   # MAIN deliverable: Parts 1-4 with inline visualizations
 ├── requirements.txt
-├── data/                      # drop your own grayscale image here (optional)
+├── data/source_image.png      # fixed input image (same photo on every run)
 └── results/figures/           # PNG copies of the notebook's figures (all are embedded inline)
 ```
 
-The notebook only imports the module (`import tikhonov_deblurring as td`) and calls it — all
+The notebook only imports the module (`import tikhonov_deblurring as td`) and calls it: all
 computation lives in `tikhonov_deblurring.py`.
 
 ## Setup
@@ -47,11 +47,11 @@ Headless (re-execute end to end):
 ./.venv/bin/python tikhonov_deblurring.py
 ```
 
-## Use your own image
+## Image
 
-By default the built-in `scipy.datasets.ascent` photo is used (with a synthetic fallback if it
-cannot be fetched offline). To use your own picture, drop a grayscale image into `data/` and change
-the setup cell:
+The setup cell loads `data/source_image.png`, a fixed grayscale photo checked into the repository, so
+the results are identical on every run and on every machine, regardless of network access. To use a
+different picture, drop a grayscale image into `data/` and change the setup cell:
 
 ```python
 f0 = td.load_image("data/your_image.png")   # resized to 256×256, normalized to [0, 1]
@@ -59,14 +59,14 @@ f0 = td.load_image("data/your_image.png")   # resized to 256×256, normalized to
 
 ## What each part shows
 
-1. **Forward problem** — Gaussian and linear-motion blur at 40 dB and 20 dB; the naive inverse
+1. **Forward problem**: Gaussian and linear-motion blur at 40 dB and 20 dB; the naive inverse
    `ĝ/K̂` blows up (ill-posedness).
-2. **Generalized Tikhonov** — `L²`/`H¹`/`H²` reconstructions (motion blur). The edge zoom makes the
+2. **Generalized Tikhonov**: `L²`/`H¹`/`H²` reconstructions (motion blur). The edge zoom makes the
    trade-off explicit: `L²` sharpest but grainiest, `H²` smoothest but softest edges, `H¹` in
    between (best PSNR here).
-3. **Spectral windowing** — a hard frequency cutoff (TSVD) produces ringing / Gibbs oscillations,
+3. **Spectral windowing**: a hard frequency cutoff (TSVD) produces ringing / Gibbs oscillations,
    whereas the smooth Tikhonov filter does not.
-4. **Bias–variance trade-off** — the total error splits into an approximation (bias) term that grows
+4. **Bias-variance trade-off**: the total error splits into an approximation (bias) term that grows
    with `µ` and a noise (variance) term that shrinks with `µ`; the optimum sits at their crossover
    (verified to coincide with the total-error minimum).
 
